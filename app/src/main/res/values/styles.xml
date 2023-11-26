@@ -13,4 +13,10 @@
         <item name="colorAccent">@color/colorPrimary</item>
     </style>
 
+    <style name="Theme.Memosplashscreen" parent="Theme.AppCompat.Light.Dialog.Alert"/>
+    <style name="Theme.App.Splashscreen" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/redm</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/woman_meditating</item>
+        <item name="postSplashScreenTheme">@style/Theme.AppCompat.Light.Dialog.Alert</item>
+    </style>
 </resources>

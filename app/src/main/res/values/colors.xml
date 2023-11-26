@@ -4,4 +4,6 @@
     <color name="colorPrimaryDark">#161616</color>
     <color name="colorAccent">#FDFDFD</color>
     <color name="black">#FF000000</color>
+    <color name="redm">#B62C2C</color>
+    <color name="merah">#FF6E6E</color>
 </resources>

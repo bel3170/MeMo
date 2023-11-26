@@ -24,17 +24,8 @@
         android:id="@+id/relativeLayout"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        tools:layout_editor_absoluteY="394dp">
-
-        <ImageView
-            android:id="@+id/imageView2"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentTop="true"
-            android:layout_alignParentEnd="true"
-            android:layout_marginTop="10dp"
-            android:layout_marginEnd="154dp"
-            app:srcCompat="@drawable/hati" />
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/hr_view_deviceId">
 
         <TextView
             android:id="@+id/hr_view_hr"
@@ -56,9 +47,20 @@
         android:id="@+id/textView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginTop="140dp"
         android:text="TextView"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/relativeLayout" />
+
+    <ImageView
+        android:id="@+id/imageView2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:srcCompat="@drawable/hati"
+        tools:layout_editor_absoluteX="184dp"
+        tools:layout_editor_absoluteY="204dp" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
