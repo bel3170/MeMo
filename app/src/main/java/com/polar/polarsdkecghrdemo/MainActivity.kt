@@ -24,6 +24,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
+
     companion object {
         private const val TAG = "Polar_MainActivity"
         private const val SHARED_PREFS_KEY = "polar_device_id"
@@ -45,12 +46,10 @@ class MainActivity : AppCompatActivity() {
         deviceId = sharedPreferences.getString(SHARED_PREFS_KEY, "")
 
         val setIdButton: Button = findViewById(R.id.buttonSetID)
-        val ecgConnectButton: Button = findViewById(R.id.buttonConnectEcg)
         val hrConnectButton: Button = findViewById(R.id.buttonConnectHr)
         checkBT()
 
         setIdButton.setOnClickListener { onClickChangeID(it) }
-        ecgConnectButton.setOnClickListener { onClickConnectEcg(it) }
         hrConnectButton.setOnClickListener { onClickConnectHr(it) }
     }
 

@@ -44,9 +44,6 @@ class HRActivity : AppCompatActivity(), PlotterListener {
         textViewHR = findViewById(R.id.hr_view_hr)
         textViewRR = findViewById(R.id.hr_view_rr)
         textViewDeviceId = findViewById(R.id.hr_view_deviceId)
-        textViewBattery = findViewById(R.id.hr_view_battery_level)
-        textViewFwVersion = findViewById(R.id.hr_view_fw_version)
-        plot = findViewById(R.id.hr_view_plot)
 
         api = defaultImplementation(
             applicationContext,
