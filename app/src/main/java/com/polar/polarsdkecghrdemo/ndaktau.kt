@@ -1,7 +1,9 @@
 package com.polar.polarsdkecghrdemo
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -42,7 +44,22 @@ class ndaktau : AppCompatActivity(), PlotterListener {
         deviceId = intent.getStringExtra("id") ?: throw Exception("HRActivity couldn't be created, no deviceId given")
         textViewHR = findViewById(R.id.textView25)
         textViewResult = findViewById(R.id.textView18)
+        // Find buttons by their IDs
+        val buttonHome: Button = findViewById(R.id.buttonHome)
+        val buttonRemeditate: Button = findViewById(R.id.buttonRemeditate)
 
+        // Set click listeners for the buttons
+        buttonHome.setOnClickListener {
+            // Navigate to MainActivity
+            startActivity(Intent(this, MainActivity::class.java))
+            finish() // Finish the current activity
+        }
+
+        buttonRemeditate.setOnClickListener {
+            // Restart meditation in HRActivity
+            startActivity(Intent(this, HRActivity::class.java).putExtra("id", deviceId))
+            finish() // Finish the current activity
+        }
         api = defaultImplementation(
             applicationContext,
             setOf(
