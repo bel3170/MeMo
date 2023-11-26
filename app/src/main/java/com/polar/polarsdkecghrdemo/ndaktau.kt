@@ -7,47 +7,43 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.androidplot.xy.BoundaryMode
 import com.androidplot.xy.StepMode
+import com.androidplot.xy.XYGraphWidget
 import com.androidplot.xy.XYPlot
 import com.polar.sdk.api.PolarBleApi
 import com.polar.sdk.api.PolarBleApiCallback
 import com.polar.sdk.api.PolarBleApiDefaultImpl.defaultImplementation
 import com.polar.sdk.api.errors.PolarInvalidArgument
 import com.polar.sdk.api.model.PolarDeviceInfo
-import com.polar.sdk.api.model.PolarEcgData
 import com.polar.sdk.api.model.PolarHrData
-import com.polar.sdk.api.model.PolarSensorSetting
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.Disposable
+import java.text.DecimalFormat
 import java.util.*
 
-class ECGActivity : AppCompatActivity(), PlotterListener {
+class HRActivity : AppCompatActivity(), PlotterListener {
     companion object {
-        private const val TAG = "ECGActivity"
+        private const val TAG = "HRActivity"
     }
 
     private lateinit var api: PolarBleApi
+    private lateinit var plotter: HrAndRrPlotter
     private lateinit var textViewHR: TextView
     private lateinit var textViewRR: TextView
     private lateinit var textViewDeviceId: TextView
     private lateinit var textViewBattery: TextView
     private lateinit var textViewFwVersion: TextView
     private lateinit var plot: XYPlot
-    private lateinit var ecgPlotter: EcgPlotter
-    private var ecgDisposable: Disposable? = null
     private var hrDisposable: Disposable? = null
 
     private lateinit var deviceId: String
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_ecg)
-        deviceId = intent.getStringExtra("id") ?: throw Exception("ECGActivity couldn't be created, no deviceId given")
-        textViewHR = findViewById(R.id.hr)
-        textViewRR = findViewById(R.id.rr)
-        textViewDeviceId = findViewById(R.id.deviceId)
-        textViewBattery = findViewById(R.id.battery_level)
-        textViewFwVersion = findViewById(R.id.fw_version)
-        plot = findViewById(R.id.plot)
+        setContentView(R.layout.activity_hr)
+        deviceId = intent.getStringExtra("id") ?: throw Exception("HRActivity couldn't be created, no deviceId given")
+        textViewHR = findViewById(R.id.hr_view_hr)
+        textViewRR = findViewById(R.id.hr_view_rr)
+        textViewDeviceId = findViewById(R.id.hr_view_deviceId)
 
         api = defaultImplementation(
             applicationContext,
@@ -57,13 +53,14 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
                 PolarBleApi.PolarBleSdkFeature.FEATURE_DEVICE_INFO
             )
         )
+        api.setApiLogger { str: String -> Log.d("SDK", str) }
         api.setApiCallback(object : PolarBleApiCallback() {
             override fun blePowerStateChanged(powered: Boolean) {
                 Log.d(TAG, "BluetoothStateChanged $powered")
             }
 
             override fun deviceConnected(polarDeviceInfo: PolarDeviceInfo) {
-                Log.d(TAG, "Device connected " + polarDeviceInfo.deviceId)
+                Log.d(TAG, "Device connected ${polarDeviceInfo.deviceId}")
                 Toast.makeText(applicationContext, R.string.connected, Toast.LENGTH_SHORT).show()
             }
 
@@ -80,7 +77,6 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
 
                 when (feature) {
                     PolarBleApi.PolarBleSdkFeature.FEATURE_POLAR_ONLINE_STREAMING -> {
-                        streamECG()
                         streamHR()
                     }
                     else -> {}
@@ -102,76 +98,53 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             }
 
             override fun hrNotificationReceived(identifier: String, data: PolarHrData.PolarHrSample) {
-                // deprecated
+                //deprecated
             }
 
             override fun polarFtpFeatureReady(identifier: String) {
-                // deprecated
+                //deprecated
             }
 
             override fun streamingFeaturesReady(identifier: String, features: Set<PolarBleApi.PolarDeviceDataType>) {
-                // deprecated
+                //deprecated
             }
 
             override fun hrFeatureReady(identifier: String) {
-                // deprecated
+                //deprecated
             }
-
         })
+
         try {
             api.connectToDevice(deviceId)
         } catch (a: PolarInvalidArgument) {
             a.printStackTrace()
         }
+
         val deviceIdText = "ID: $deviceId"
         textViewDeviceId.text = deviceIdText
 
-        ecgPlotter = EcgPlotter("ECG", 130)
-        ecgPlotter.setListener(this)
-
-        plot.addSeries(ecgPlotter.getSeries(), ecgPlotter.formatter)
-        plot.setRangeBoundaries(-1.5, 1.5, BoundaryMode.FIXED)
-        plot.setRangeStep(StepMode.INCREMENT_BY_FIT, 0.25)
-        plot.setDomainStep(StepMode.INCREMENT_BY_VAL, 130.0)
-        plot.setDomainBoundaries(0, 650, BoundaryMode.FIXED)
+        plotter = HrAndRrPlotter()
+        plotter.setListener(this)
+        plot.addSeries(plotter.hrSeries, plotter.hrFormatter)
+        plot.addSeries(plotter.rrSeries, plotter.rrFormatter)
+        plot.setRangeBoundaries(50, 100, BoundaryMode.AUTO)
+        plot.setDomainBoundaries(0, 360000, BoundaryMode.AUTO)
+        // Left labels will increment by 10
+        plot.setRangeStep(StepMode.INCREMENT_BY_VAL, 10.0)
+        plot.setDomainStep(StepMode.INCREMENT_BY_VAL, 60000.0)
+        // Make left labels be an integer (no decimal places)
+        plot.graph.getLineLabelStyle(XYGraphWidget.Edge.LEFT).format = DecimalFormat("#")
+        // These don't seem to have an effect
         plot.linesPerRangeLabel = 2
     }
 
     public override fun onDestroy() {
         super.onDestroy()
-        ecgDisposable?.let {
-            if (!it.isDisposed) it.dispose()
-        }
         api.shutDown()
     }
 
-    fun streamECG() {
-        val isDisposed = ecgDisposable?.isDisposed ?: true
-        if (isDisposed) {
-            ecgDisposable = api.requestStreamSettings(deviceId, PolarBleApi.PolarDeviceDataType.ECG)
-                .toFlowable()
-                .flatMap { sensorSetting: PolarSensorSetting -> api.startEcgStreaming(deviceId, sensorSetting.maxSettings()) }
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(
-                    { polarEcgData: PolarEcgData ->
-                        Log.d(TAG, "ecg update")
-                        for (data in polarEcgData.samples) {
-                            ecgPlotter.sendSingleSample((data.voltage.toFloat() / 1000.0).toFloat())
-                        }
-                    },
-                    { error: Throwable ->
-                        Log.e(TAG, "Ecg stream failed $error")
-                        ecgDisposable = null
-                    },
-                    {
-                        Log.d(TAG, "Ecg stream complete")
-                    }
-                )
-        } else {
-            // NOTE stops streaming if it is "running"
-            ecgDisposable?.dispose()
-            ecgDisposable = null
-        }
+    override fun update() {
+        runOnUiThread { plot.redraw() }
     }
 
     fun streamHR() {
@@ -182,13 +155,14 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
                 .subscribe(
                     { hrData: PolarHrData ->
                         for (sample in hrData.samples) {
-                            Log.d(TAG, "HR " + sample.hr)
+                            Log.d(TAG, "HR ${sample.hr} RR ${sample.rrsMs}")
+
                             if (sample.rrsMs.isNotEmpty()) {
                                 val rrText = "(${sample.rrsMs.joinToString(separator = "ms, ")}ms)"
                                 textViewRR.text = rrText
                             }
-
                             textViewHR.text = sample.hr.toString()
+                            plotter.addValues(sample)
 
                         }
                     },
@@ -203,9 +177,5 @@ class ECGActivity : AppCompatActivity(), PlotterListener {
             hrDisposable?.dispose()
             hrDisposable = null
         }
-    }
-
-    override fun update() {
-        runOnUiThread { plot.redraw() }
     }
 }
