@@ -53,19 +53,6 @@ class MainActivity : AppCompatActivity() {
         hrConnectButton.setOnClickListener { onClickConnectHr(it) }
     }
 
-    private fun onClickConnectEcg(view: View) {
-        checkBT()
-        if (deviceId == null || deviceId == "") {
-            deviceId = sharedPreferences.getString(SHARED_PREFS_KEY, "")
-            showDialog(view)
-        } else {
-            showToast(getString(R.string.connecting) + " " + deviceId)
-            val intent = Intent(this, ECGActivity::class.java)
-            intent.putExtra("id", deviceId)
-            startActivity(intent)
-        }
-    }
-
     private fun onClickConnectHr(view: View) {
         checkBT()
         if (deviceId == null || deviceId == "") {

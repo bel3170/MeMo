@@ -1,5 +1,7 @@
 package com.polar.polarsdkecghrdemo
 
+import android.annotation.SuppressLint
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.widget.TextView
@@ -8,6 +10,8 @@ import androidx.appcompat.app.AppCompatActivity
 import com.androidplot.xy.BoundaryMode
 import com.androidplot.xy.StepMode
 import com.androidplot.xy.XYGraphWidget
+import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.disposables.CompositeDisposable
 import com.androidplot.xy.XYPlot
 import com.polar.sdk.api.PolarBleApi
 import com.polar.sdk.api.PolarBleApiCallback
@@ -19,6 +23,7 @@ import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.Disposable
 import java.text.DecimalFormat
 import java.util.*
+import java.util.concurrent.TimeUnit
 
 class HRActivity : AppCompatActivity(), PlotterListener {
     companion object {
@@ -26,7 +31,6 @@ class HRActivity : AppCompatActivity(), PlotterListener {
     }
 
     private lateinit var api: PolarBleApi
-    private lateinit var plotter: HrAndRrPlotter
     private lateinit var textViewHR: TextView
     private lateinit var textViewRR: TextView
     private lateinit var textViewDeviceId: TextView
@@ -34,16 +38,17 @@ class HRActivity : AppCompatActivity(), PlotterListener {
     private lateinit var textViewFwVersion: TextView
     private lateinit var plot: XYPlot
     private var hrDisposable: Disposable? = null
+    private var totalHeartRate = 0
+    private var heartRateCount = 0
 
     private lateinit var deviceId: String
 
+    @SuppressLint("MissingInflatedId")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_hr)
+        setContentView(R.layout.meditateongoing)
         deviceId = intent.getStringExtra("id") ?: throw Exception("HRActivity couldn't be created, no deviceId given")
         textViewHR = findViewById(R.id.hr_view_hr)
-        textViewRR = findViewById(R.id.hr_view_rr)
-        textViewDeviceId = findViewById(R.id.hr_view_deviceId)
 
         api = defaultImplementation(
             applicationContext,
@@ -123,19 +128,6 @@ class HRActivity : AppCompatActivity(), PlotterListener {
         val deviceIdText = "ID: $deviceId"
         textViewDeviceId.text = deviceIdText
 
-        plotter = HrAndRrPlotter()
-        plotter.setListener(this)
-        plot.addSeries(plotter.hrSeries, plotter.hrFormatter)
-        plot.addSeries(plotter.rrSeries, plotter.rrFormatter)
-        plot.setRangeBoundaries(50, 100, BoundaryMode.AUTO)
-        plot.setDomainBoundaries(0, 360000, BoundaryMode.AUTO)
-        // Left labels will increment by 10
-        plot.setRangeStep(StepMode.INCREMENT_BY_VAL, 10.0)
-        plot.setDomainStep(StepMode.INCREMENT_BY_VAL, 60000.0)
-        // Make left labels be an integer (no decimal places)
-        plot.graph.getLineLabelStyle(XYGraphWidget.Edge.LEFT).format = DecimalFormat("#")
-        // These don't seem to have an effect
-        plot.linesPerRangeLabel = 2
     }
 
     public override fun onDestroy() {
@@ -150,32 +142,69 @@ class HRActivity : AppCompatActivity(), PlotterListener {
     fun streamHR() {
         val isDisposed = hrDisposable?.isDisposed ?: true
         if (isDisposed) {
+            val durationInMilliseconds = 60000 // Set the desired duration in milliseconds (e.g., 1 minute)
+            var elapsedTime = 0L // Track elapsed time
+
             hrDisposable = api.startHrStreaming(deviceId)
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(
-                    { hrData: PolarHrData ->
-                        for (sample in hrData.samples) {
-                            Log.d(TAG, "HR ${sample.hr} RR ${sample.rrsMs}")
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .takeWhile { elapsedTime < durationInMilliseconds }
+                    .doOnTerminate {
+                        // Code to execute when the stream terminates
+                        Log.d(TAG, "HR stream terminated")
 
-                            if (sample.rrsMs.isNotEmpty()) {
-                                val rrText = "(${sample.rrsMs.joinToString(separator = "ms, ")}ms)"
-                                textViewRR.text = rrText
-                            }
-                            textViewHR.text = sample.hr.toString()
-                            plotter.addValues(sample)
+                        // Calculate the mean heart rate
+                        val meanHeartRate = if (heartRateCount > 0) totalHeartRate / heartRateCount else 0
 
-                        }
-                    },
-                    { error: Throwable ->
-                        Log.e(TAG, "HR stream failed. Reason $error")
+                        // Pass the meanHeartRate to the next activity
+                        val intent = Intent(this@HRActivity, ndaktau::class.java)
+                        intent.putExtra("meanHeartRate", meanHeartRate)
+                        startActivity(intent)
+
+                        // Finish the current activity
+                        finish()
+
                         hrDisposable = null
-                    },
-                    { Log.d(TAG, "HR stream complete") }
-                )
+                    }
+                    .subscribe(
+                            { hrData: PolarHrData ->
+                                for (sample in hrData.samples) {
+                                    Log.d(TAG, "HR ${sample.hr}")
+
+                                    // Update only the TextView for HR
+                                    textViewHR.text = sample.hr.toString()
+
+                                    // Update sum and count for mean calculation
+                                    totalHeartRate += sample.hr
+                                    heartRateCount++
+                                }
+                            },
+                            { error: Throwable ->
+                                Log.e(TAG, "HR stream failed. Reason $error")
+                                hrDisposable = null
+                            },
+                            {
+                                Log.d(TAG, "HR stream complete")
+
+                                // Stop the streaming after the specified duration
+                                hrDisposable?.dispose()
+                                hrDisposable = null
+                            }
+                    )
+
+            // Start a timer to track elapsed time
+            val timerDisposable = io.reactivex.rxjava3.core.Observable.interval(1, TimeUnit.SECONDS)
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe {
+                        elapsedTime += 1000 // Increment elapsed time every second
+                    }
+                        // Add the timerDisposable to hrDisposable so that it gets disposed along with hrDisposable
+            hrDisposable = CompositeDisposable(timerDisposable)
+
         } else {
             // NOTE stops streaming if it is "running"
             hrDisposable?.dispose()
             hrDisposable = null
         }
     }
+
 }

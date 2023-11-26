@@ -20,15 +20,14 @@ import io.reactivex.rxjava3.disposables.Disposable
 import java.text.DecimalFormat
 import java.util.*
 
-class HRActivity : AppCompatActivity(), PlotterListener {
+class ndaktau : AppCompatActivity(), PlotterListener {
     companion object {
         private const val TAG = "HRActivity"
     }
 
     private lateinit var api: PolarBleApi
-    private lateinit var plotter: HrAndRrPlotter
     private lateinit var textViewHR: TextView
-    private lateinit var textViewRR: TextView
+    private lateinit var textViewResult: TextView
     private lateinit var textViewDeviceId: TextView
     private lateinit var textViewBattery: TextView
     private lateinit var textViewFwVersion: TextView
@@ -39,11 +38,10 @@ class HRActivity : AppCompatActivity(), PlotterListener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_hr)
+        setContentView(R.layout.meditateresult)
         deviceId = intent.getStringExtra("id") ?: throw Exception("HRActivity couldn't be created, no deviceId given")
-        textViewHR = findViewById(R.id.hr_view_hr)
-        textViewRR = findViewById(R.id.hr_view_rr)
-        textViewDeviceId = findViewById(R.id.hr_view_deviceId)
+        textViewHR = findViewById(R.id.textView25)
+        textViewResult = findViewById(R.id.textView18)
 
         api = defaultImplementation(
             applicationContext,
@@ -122,20 +120,6 @@ class HRActivity : AppCompatActivity(), PlotterListener {
 
         val deviceIdText = "ID: $deviceId"
         textViewDeviceId.text = deviceIdText
-
-        plotter = HrAndRrPlotter()
-        plotter.setListener(this)
-        plot.addSeries(plotter.hrSeries, plotter.hrFormatter)
-        plot.addSeries(plotter.rrSeries, plotter.rrFormatter)
-        plot.setRangeBoundaries(50, 100, BoundaryMode.AUTO)
-        plot.setDomainBoundaries(0, 360000, BoundaryMode.AUTO)
-        // Left labels will increment by 10
-        plot.setRangeStep(StepMode.INCREMENT_BY_VAL, 10.0)
-        plot.setDomainStep(StepMode.INCREMENT_BY_VAL, 60000.0)
-        // Make left labels be an integer (no decimal places)
-        plot.graph.getLineLabelStyle(XYGraphWidget.Edge.LEFT).format = DecimalFormat("#")
-        // These don't seem to have an effect
-        plot.linesPerRangeLabel = 2
     }
 
     public override fun onDestroy() {
@@ -151,31 +135,45 @@ class HRActivity : AppCompatActivity(), PlotterListener {
         val isDisposed = hrDisposable?.isDisposed ?: true
         if (isDisposed) {
             hrDisposable = api.startHrStreaming(deviceId)
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(
-                    { hrData: PolarHrData ->
-                        for (sample in hrData.samples) {
-                            Log.d(TAG, "HR ${sample.hr} RR ${sample.rrsMs}")
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(
+                            { hrData: PolarHrData ->
+                                for (sample in hrData.samples) {
+                                    Log.d(TAG, "HR ${sample.hr} RR ${sample.rrsMs}")
 
-                            if (sample.rrsMs.isNotEmpty()) {
-                                val rrText = "(${sample.rrsMs.joinToString(separator = "ms, ")}ms)"
-                                textViewRR.text = rrText
+                                    // Update the HR TextView
+                                    textViewHR.text = sample.hr.toString()
+
+                                    // Check the heart rate and display a message
+                                    when {
+                                        sample.hr < 70 -> {
+                                            textViewResult.text = "Exercise a bit more"
+                                        }
+                                        sample.hr > 120 -> {
+                                            textViewResult.text = "You need to relax"
+                                        }
+                                        else -> {
+                                            textViewResult.text = "You're doing great!"
+                                        }
+                                    }
+                                }
+                            },
+                            { error: Throwable ->
+                                Log.e(TAG, "HR stream failed. Reason $error")
+                                hrDisposable = null
+                            },
+                            {
+                                Log.d(TAG, "HR stream complete")
+                                // Stop the streaming after completion
+                                hrDisposable?.dispose()
+                                hrDisposable = null
                             }
-                            textViewHR.text = sample.hr.toString()
-                            plotter.addValues(sample)
-
-                        }
-                    },
-                    { error: Throwable ->
-                        Log.e(TAG, "HR stream failed. Reason $error")
-                        hrDisposable = null
-                    },
-                    { Log.d(TAG, "HR stream complete") }
-                )
+                    )
         } else {
             // NOTE stops streaming if it is "running"
             hrDisposable?.dispose()
             hrDisposable = null
         }
     }
+
 }
