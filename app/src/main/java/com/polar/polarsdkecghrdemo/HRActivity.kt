@@ -241,6 +241,6 @@ class HRActivity : AppCompatActivity(){
     }
 
     // Don't forget to handle disposal of disposable when needed (e.g., in onDestroy)
-
+    //Added Comments
 
 }
