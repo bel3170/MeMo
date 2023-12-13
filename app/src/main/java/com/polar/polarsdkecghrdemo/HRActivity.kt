@@ -49,52 +49,53 @@ class HRActivity : AppCompatActivity(){
             // Handle button click
             navigateToResults()
         }
+        startDummyDataStream()
+//        api = defaultImplementation(
+//            applicationContext,
+//            setOf(
+//                PolarBleApi.PolarBleSdkFeature.FEATURE_POLAR_ONLINE_STREAMING,
+//                PolarBleApi.PolarBleSdkFeature.FEATURE_BATTERY_INFO,
+//                PolarBleApi.PolarBleSdkFeature.FEATURE_DEVICE_INFO
+//            )
+//        )
+//        api.setApiLogger { str: String -> Log.d("SDK", str) }
+//        api.setApiCallback(object : PolarBleApiCallback() {
+//            override fun blePowerStateChanged(powered: Boolean) {
+//                Log.d(TAG, "BluetoothStateChanged $powered")
+//            }
+//
+//            override fun deviceConnected(polarDeviceInfo: PolarDeviceInfo) {
+//                Log.d(TAG, "Device connected ${polarDeviceInfo.deviceId}")
+//                Toast.makeText(applicationContext, R.string.connected, Toast.LENGTH_SHORT).show()
+//            }
+//
+//            override fun deviceConnecting(polarDeviceInfo: PolarDeviceInfo) {
+//                Log.d(TAG, "Device connecting ${polarDeviceInfo.deviceId}")
+//            }
+//
+//            override fun deviceDisconnected(polarDeviceInfo: PolarDeviceInfo) {
+//                Log.d(TAG, "Device disconnected ${polarDeviceInfo.deviceId}")
+//            }
+//
+//            override fun bleSdkFeatureReady(identifier: String, feature: PolarBleApi.PolarBleSdkFeature) {
+//                Log.d(TAG, "feature ready $feature")
+//                startDummyDataStream()
+////                when (feature) {
+////                    PolarBleApi.PolarBleSdkFeature.FEATURE_POLAR_ONLINE_STREAMING -> {
+////                        startDummyDataStream()
+////                    }
+////                    else -> {}
+////                }
+//
+//            }
+//
+//        })
 
-        api = defaultImplementation(
-            applicationContext,
-            setOf(
-                PolarBleApi.PolarBleSdkFeature.FEATURE_POLAR_ONLINE_STREAMING,
-                PolarBleApi.PolarBleSdkFeature.FEATURE_BATTERY_INFO,
-                PolarBleApi.PolarBleSdkFeature.FEATURE_DEVICE_INFO
-            )
-        )
-        api.setApiLogger { str: String -> Log.d("SDK", str) }
-        api.setApiCallback(object : PolarBleApiCallback() {
-            override fun blePowerStateChanged(powered: Boolean) {
-                Log.d(TAG, "BluetoothStateChanged $powered")
-            }
-
-            override fun deviceConnected(polarDeviceInfo: PolarDeviceInfo) {
-                Log.d(TAG, "Device connected ${polarDeviceInfo.deviceId}")
-                Toast.makeText(applicationContext, R.string.connected, Toast.LENGTH_SHORT).show()
-            }
-
-            override fun deviceConnecting(polarDeviceInfo: PolarDeviceInfo) {
-                Log.d(TAG, "Device connecting ${polarDeviceInfo.deviceId}")
-            }
-
-            override fun deviceDisconnected(polarDeviceInfo: PolarDeviceInfo) {
-                Log.d(TAG, "Device disconnected ${polarDeviceInfo.deviceId}")
-            }
-
-            override fun bleSdkFeatureReady(identifier: String, feature: PolarBleApi.PolarBleSdkFeature) {
-                Log.d(TAG, "feature ready $feature")
-
-                when (feature) {
-                    PolarBleApi.PolarBleSdkFeature.FEATURE_POLAR_ONLINE_STREAMING -> {
-                        startDummyDataStream()
-                    }
-                    else -> {}
-                }
-            }
-
-        })
-
-        try {
-            api.connectToDevice(deviceId)
-        } catch (a: PolarInvalidArgument) {
-            a.printStackTrace()
-        }
+//        try {
+//            api.connectToDevice(deviceId)
+//        } catch (a: PolarInvalidArgument) {
+//            a.printStackTrace()
+//        }
     }
 
     public override fun onDestroy() {
