@@ -14,7 +14,10 @@ import com.polar.sdk.api.errors.PolarInvalidArgument
 import com.polar.sdk.api.model.PolarDeviceInfo
 import com.polar.sdk.api.model.PolarHrData
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.Disposable
+import java.util.concurrent.TimeUnit
+import kotlin.random.Random
 
 class HRActivity : AppCompatActivity(){
     companion object {
@@ -46,52 +49,53 @@ class HRActivity : AppCompatActivity(){
             // Handle button click
             navigateToResults()
         }
+        startDummyDataStream()
+//        api = defaultImplementation(
+//            applicationContext,
+//            setOf(
+//                PolarBleApi.PolarBleSdkFeature.FEATURE_POLAR_ONLINE_STREAMING,
+//                PolarBleApi.PolarBleSdkFeature.FEATURE_BATTERY_INFO,
+//                PolarBleApi.PolarBleSdkFeature.FEATURE_DEVICE_INFO
+//            )
+//        )
+//        api.setApiLogger { str: String -> Log.d("SDK", str) }
+//        api.setApiCallback(object : PolarBleApiCallback() {
+//            override fun blePowerStateChanged(powered: Boolean) {
+//                Log.d(TAG, "BluetoothStateChanged $powered")
+//            }
+//
+//            override fun deviceConnected(polarDeviceInfo: PolarDeviceInfo) {
+//                Log.d(TAG, "Device connected ${polarDeviceInfo.deviceId}")
+//                Toast.makeText(applicationContext, R.string.connected, Toast.LENGTH_SHORT).show()
+//            }
+//
+//            override fun deviceConnecting(polarDeviceInfo: PolarDeviceInfo) {
+//                Log.d(TAG, "Device connecting ${polarDeviceInfo.deviceId}")
+//            }
+//
+//            override fun deviceDisconnected(polarDeviceInfo: PolarDeviceInfo) {
+//                Log.d(TAG, "Device disconnected ${polarDeviceInfo.deviceId}")
+//            }
+//
+//            override fun bleSdkFeatureReady(identifier: String, feature: PolarBleApi.PolarBleSdkFeature) {
+//                Log.d(TAG, "feature ready $feature")
+//                startDummyDataStream()
+////                when (feature) {
+////                    PolarBleApi.PolarBleSdkFeature.FEATURE_POLAR_ONLINE_STREAMING -> {
+////                        startDummyDataStream()
+////                    }
+////                    else -> {}
+////                }
+//
+//            }
+//
+//        })
 
-        api = defaultImplementation(
-            applicationContext,
-            setOf(
-                PolarBleApi.PolarBleSdkFeature.FEATURE_POLAR_ONLINE_STREAMING,
-                PolarBleApi.PolarBleSdkFeature.FEATURE_BATTERY_INFO,
-                PolarBleApi.PolarBleSdkFeature.FEATURE_DEVICE_INFO
-            )
-        )
-        api.setApiLogger { str: String -> Log.d("SDK", str) }
-        api.setApiCallback(object : PolarBleApiCallback() {
-            override fun blePowerStateChanged(powered: Boolean) {
-                Log.d(TAG, "BluetoothStateChanged $powered")
-            }
-
-            override fun deviceConnected(polarDeviceInfo: PolarDeviceInfo) {
-                Log.d(TAG, "Device connected ${polarDeviceInfo.deviceId}")
-                Toast.makeText(applicationContext, R.string.connected, Toast.LENGTH_SHORT).show()
-            }
-
-            override fun deviceConnecting(polarDeviceInfo: PolarDeviceInfo) {
-                Log.d(TAG, "Device connecting ${polarDeviceInfo.deviceId}")
-            }
-
-            override fun deviceDisconnected(polarDeviceInfo: PolarDeviceInfo) {
-                Log.d(TAG, "Device disconnected ${polarDeviceInfo.deviceId}")
-            }
-
-            override fun bleSdkFeatureReady(identifier: String, feature: PolarBleApi.PolarBleSdkFeature) {
-                Log.d(TAG, "feature ready $feature")
-
-                when (feature) {
-                    PolarBleApi.PolarBleSdkFeature.FEATURE_POLAR_ONLINE_STREAMING -> {
-                        streamHR()
-                    }
-                    else -> {}
-                }
-            }
-
-        })
-
-        try {
-            api.connectToDevice(deviceId)
-        } catch (a: PolarInvalidArgument) {
-            a.printStackTrace()
-        }
+//        try {
+//            api.connectToDevice(deviceId)
+//        } catch (a: PolarInvalidArgument) {
+//            a.printStackTrace()
+//        }
     }
 
     public override fun onDestroy() {
@@ -115,11 +119,15 @@ class HRActivity : AppCompatActivity(){
                             }
 
                             // Update hr_view_hr with heart rate (BPM) value
+                            val bpm = sample.hr
                             val bpmText = "${sample.hr} BPM"
                             findViewById<TextView>(R.id.hr_view_hr).text = bpmText
 
                             // Record heart rate value
                             hrList.add(sample.hr)
+
+                            // Add live recommendations based on heart rate value
+                            handleHeartRateRecommendations(bpm)
                         }
                     },
                     { error: Throwable ->
@@ -179,4 +187,61 @@ class HRActivity : AppCompatActivity(){
             0
         }
     }
+
+    private fun handleHeartRateRecommendations(heartRate: Int) {
+        when {
+            heartRate > 120 -> {
+                // Display recommendation for high heart rate (e.g., "Relax more")
+                displayRecommendation("Relax more for a better meditation experience.")
+            }
+            heartRate in 70..120 -> {
+                // Display recommendation for normal heart rate (e.g., "Maintain steady breathing")
+                displayRecommendation("Maintain steady breathing for optimal meditation.")
+            }
+            heartRate < 70 -> {
+                // Display recommendation for low heart rate (e.g., "Consider light exercises")
+                displayRecommendation("Consider light exercises to increase your heart rate.")
+            }
+            // Add more conditions as needed
+        }
+    }
+
+    private fun displayRecommendation(recommendation: String) {
+        // Update a TextView or any other UI element with the live recommendation
+        findViewById<TextView>(R.id.textView4).text = recommendation
+    }
+
+    // Function to generate dummy heart rate data for testing
+    private fun generateDummyHeartRate(): Int {
+        return Random.nextInt(60, 130) // Generate random heart rate between 60 and 130
+    }
+
+    // Modify your streamHR function to use dummy data
+    private fun streamHRWithDummyData() {
+        hrDisposable = Observable.interval(1000, TimeUnit.MILLISECONDS) // Simulate data every second
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe {
+                    val dummyHeartRate = generateDummyHeartRate()
+                    Log.d(TAG, "Dummy HR $dummyHeartRate")
+
+                    // Update hr_view_hr with dummy heart rate (BPM) value
+                    val bpmText = "$dummyHeartRate BPM"
+                    findViewById<TextView>(R.id.hr_view_hr).text = bpmText
+
+                    // Record dummy heart rate value
+                    hrList.add(dummyHeartRate)
+
+                    // Add live recommendations based on dummy heart rate value
+                    handleHeartRateRecommendations(dummyHeartRate)
+                }
+    }
+
+    // Call this function in your onCreate or wherever appropriate
+    private fun startDummyDataStream() {
+        streamHRWithDummyData()
+    }
+
+    // Don't forget to handle disposal of disposable when needed (e.g., in onDestroy)
+    //Added Comments fixed push
+
 }
